@@ -1,0 +1,507 @@
+import React, { useEffect, useMemo, useState } from "react";
+
+// === Utilidades ===
+function clsx(...args) {
+  return args.filter(Boolean).join(" ");
+}
+
+function useLocalStorage(key, initialValue) {
+  const [value, setValue] = useState(() => {
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (e) {
+      return initialValue;
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+      // noop
+    }
+  }, [key, value]);
+  return [value, setValue];
+}
+
+// === Dados de exemplo (pode apagar) ===
+const SAMPLE_RESOURCES = [
+  { id: "orichalcum_ore", name: "Orichalcum Ore", qty: 9927, unit: "un" },
+  { id: "cinnabar", name: "Cinnabar", qty: 167, unit: "un" },
+  { id: "obsidian_flux", name: "Obsidian Flux", qty: 255, unit: "un" },
+  { id: "charcoal", name: "Charcoal", qty: 32, unit: "un" },
+];
+
+const SAMPLE_RECIPES = [
+  {
+    id: "asmodeum",
+    name: "Asmodeum",
+    notes: "Receita atual: 5 Orichalcum Ingots, 2 Cinnabar, 1 Obsidian Flux, 2 Charcoal.",
+    outputQty: 1,
+    inputs: [
+      { name: "Orichalcum Ingot", qty: 5 },
+      { name: "Cinnabar", qty: 2 },
+      { name: "Obsidian Flux", qty: 1 },
+      { name: "Charcoal", qty: 2 },
+    ],
+  },
+];
+
+// === Componentes de UI ===
+function Card({ className, children }) {
+  return (
+    <div className={clsx("rounded-2xl shadow p-4 bg-black/90 border border-orange-600", className)}>
+      {children}
+    </div>
+  );
+}
+
+function Button({ children, className, ...props }) {
+  return (
+    <button
+      className={clsx(
+        "px-3 py-2 rounded-xl shadow-sm border border-orange-600/70 hover:border-orange-400 hover:shadow transition text-sm",
+        "bg-black text-orange-300 hover:bg-orange-950",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Input({ className, ...props }) {
+  return (
+    <input
+      className={clsx(
+        "w-full px-3 py-2 rounded-xl border border-orange-700 bg-black text-orange-200 placeholder-orange-700/70",
+        "focus:outline-none focus:ring focus:ring-orange-800",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+function Textarea({ className, ...props }) {
+  return (
+    <textarea
+      className={clsx(
+        "w-full px-3 py-2 rounded-xl border border-orange-700 bg-black text-orange-200 placeholder-orange-700/70",
+        "focus:outline-none focus:ring focus:ring-orange-800",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+// === Helpers de Download/Upload ===
+function download(filename, data) {
+  const blob = new Blob([data], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function parseJSON(s) {
+  try {
+    return JSON.parse(s);
+  } catch (e) {
+    alert("JSON inválido");
+    return null;
+  }
+}
+
+// === App ===
+export default function App() {
+  const [tab, setTab] = useLocalStorage("nw.tab", "recursos");
+  const [resources, setResources] = useLocalStorage("nw.resources", SAMPLE_RESOURCES);
+  const [recipes, setRecipes] = useLocalStorage("nw.recipes", SAMPLE_RECIPES);
+  const [plan, setPlan] = useLocalStorage("nw.plan", { recipeId: "asmodeum", target: 10 });
+  const [filter, setFilter] = useState("");
+
+  // Map por nome (case-insensitive)
+  const resourceMap = useMemo(() => {
+    const map = new Map();
+    resources.forEach((r) => map.set(r.name.toLowerCase(), r));
+    return map;
+  }, [resources]);
+
+  const currentRecipe = useMemo(() => recipes.find((r) => r.id === plan.recipeId) || recipes[0], [recipes, plan.recipeId]);
+
+  // Cálculo de necessidades
+  const needs = useMemo(() => {
+    if (!currentRecipe) return [];
+    const batches = Math.max(1, Number(plan.target) || 1);
+    return currentRecipe.inputs.map((inp) => {
+      const need = (Number(inp.qty) || 0) * batches;
+      const have = (resourceMap.get(inp.name.toLowerCase())?.qty || 0);
+      return { name: inp.name, need, have, deficit: Math.max(0, need - have) };
+    });
+  }, [currentRecipe, plan.target, resourceMap]);
+
+  const totalDeficit = useMemo(() => needs.reduce((acc, n) => acc + n.deficit, 0), [needs]);
+
+  // Ações Recursos
+  function addResource() {
+    setResources((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), name: "Novo Recurso", qty: 0, unit: "un" },
+    ]);
+  }
+  function updateResource(id, patch) {
+    setResources((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }
+  function removeResource(id) {
+    setResources((prev) => prev.filter((r) => r.id !== id));
+  }
+
+  // Ações Receitas
+  function addRecipe() {
+    setRecipes((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), name: "Nova Receita", outputQty: 1, inputs: [{ name: "Item A", qty: 1 }] },
+    ]);
+  }
+  function updateRecipe(id, patch) {
+    setRecipes((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }
+  function removeRecipe(id) {
+    setRecipes((prev) => prev.filter((r) => r.id !== id));
+  }
+
+  // Import/Export
+  function exportAll() {
+    const payload = { resources, recipes, plan, version: 1 };
+    download("nw-tracker.json", JSON.stringify(payload, null, 2));
+  }
+  function importAll(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const data = parseJSON(String(reader.result));
+      if (!data) return;
+      if (data.resources) setResources(data.resources);
+      if (data.recipes) setRecipes(data.recipes);
+      if (data.plan) setPlan(data.plan);
+      alert("Importado com sucesso!");
+    };
+    reader.readAsText(file);
+  }
+
+  // Import de texto (colar inventário em massa)
+  const [bulkText, setBulkText] = useState("");
+  function applyBulk() {
+    // Formato por linha: "quantidade nome do recurso" (ex: 9927 Orichalcum Ore)
+    const lines = bulkText.split(/\n|\r/).map((l) => l.trim()).filter(Boolean);
+    const next = [...resources];
+    for (const line of lines) {
+      const m = line.match(/^([0-9]+(?:\.[0-9]+)?)\s+(.+)$/);
+      if (!m) continue;
+      const qty = Number(m[1]);
+      const name = m[2].replace(/\s+/g, " ").trim();
+      const key = name.toLowerCase();
+      const idx = next.findIndex((r) => r.name.toLowerCase() === key);
+      if (idx >= 0) next[idx] = { ...next[idx], qty };
+      else next.push({ id: crypto.randomUUID(), name, qty, unit: "un" });
+    }
+    setResources(next);
+    setBulkText("");
+  }
+
+  // Buscar receita via URL (precisa CORS liberado)
+  const [fetchUrl, setFetchUrl] = useState("");
+  async function fetchRecipeFromUrl() {
+    if (!fetchUrl) return;
+    try {
+      const res = await fetch(fetchUrl);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      // Formato esperado
+      if (!data.name || !Array.isArray(data.inputs)) throw new Error("Formato esperado: { name, outputQty, inputs[] }");
+      setRecipes((prev) => [...prev, { id: crypto.randomUUID(), ...data }]);
+      alert("Receita importada!");
+    } catch (e) {
+      alert("Falha ao buscar receita. Verifique CORS/URL.\n" + e.message);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-black text-orange-200 p-4 md:p-8">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <h1 className="text-2xl md:text-3xl font-bold text-orange-400">New World – Tracker de Recursos & Crafts</h1>
+          <div className="flex gap-2">
+            <Button onClick={exportAll}>Exportar backup</Button>
+            <label className="cursor-pointer">
+              <input type="file" className="hidden" accept="application/json" onChange={importAll} />
+              <span className="px-3 py-2 rounded-xl shadow-sm border border-orange-700 bg-black text-orange-300 hover:bg-orange-950 text-sm">Importar backup</span>
+            </label>
+          </div>
+        </header>
+
+        {/* Tabs */}
+        <nav className="flex gap-2">
+          {[
+            { id: "recursos", label: "Recursos" },
+            { id: "receitas", label: "Receitas" },
+            { id: "planejamento", label: "Planejamento" },
+            { id: "config", label: "Config/Import" },
+          ].map((t) => (
+            <Button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={clsx(
+                tab === t.id ? "bg-orange-900 text-orange-100 border-orange-500" : "",
+              )}
+            >
+              {t.label}
+            </Button>
+          ))}
+        </nav>
+
+        {/* Recursos */}
+        {tab === "recursos" && (
+          <Card>
+            <div className="flex items-center justify-between mb-3 gap-3">
+              <h2 className="text-xl font-semibold text-orange-300">Inventário de Recursos</h2>
+              <div className="flex gap-2">
+                <Input placeholder="Filtrar por nome…" value={filter} onChange={(e) => setFilter(e.target.value)} />
+                <Button onClick={addResource}>Adicionar recurso</Button>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-orange-500/80">
+                    <th className="py-2">Nome</th>
+                    <th className="py-2 w-32">Qtd</th>
+                    <th className="py-2 w-28">Unidade</th>
+                    <th className="py-2 w-24"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {resources
+                    .filter((r) => r.name.toLowerCase().includes(filter.toLowerCase()))
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((r) => (
+                      <tr key={r.id} className="border-t border-orange-800/60">
+                        <td className="py-2 pr-2">
+                          <Input value={r.name} onChange={(e) => updateResource(r.id, { name: e.target.value })} />
+                        </td>
+                        <td className="py-2 pr-2">
+                          <Input type="number" value={r.qty} onChange={(e) => updateResource(r.id, { qty: Number(e.target.value) })} />
+                        </td>
+                        <td className="py-2 pr-2">
+                          <Input value={r.unit || "un"} onChange={(e) => updateResource(r.id, { unit: e.target.value })} />
+                        </td>
+                        <td className="py-2">
+                          <Button className="text-red-400 border-red-700" onClick={() => removeResource(r.id)}>Remover</Button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+
+        {/* Receitas */}
+        {tab === "receitas" && (
+          <div className="grid md:grid-cols-3 gap-4">
+            <Card className="md:col-span-2">
+              <div className="flex items-center justify-between mb-3 gap-3">
+                <h2 className="text-xl font-semibold text-orange-300">Receitas</h2>
+                <Button onClick={addRecipe}>Adicionar receita</Button>
+              </div>
+              <div className="space-y-3">
+                {recipes.map((rec) => (
+                  <Card key={rec.id} className="border-orange-700">
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-orange-500/80">Nome</label>
+                        <Input value={rec.name} onChange={(e) => updateRecipe(rec.id, { name: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="text-xs text-orange-500/80">Saída (por craft)</label>
+                        <Input type="number" value={rec.outputQty || 1} onChange={(e) => updateRecipe(rec.id, { outputQty: Number(e.target.value) || 1 })} />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-xs text-orange-500/80">Observações</label>
+                        <Input value={rec.notes || ""} onChange={(e) => updateRecipe(rec.id, { notes: e.target.value })} />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="text-xs text-orange-500/80">Insumos</label>
+                        <div className="space-y-2">
+                          {(rec.inputs || []).map((inp, idx) => (
+                            <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                              <div className="col-span-7">
+                                <Input value={inp.name} onChange={(e) => {
+                                  const inputs = [...rec.inputs];
+                                  inputs[idx] = { ...inp, name: e.target.value };
+                                  updateRecipe(rec.id, { inputs });
+                                }} />
+                              </div>
+                              <div className="col-span-3">
+                                <Input type="number" value={inp.qty} onChange={(e) => {
+                                  const inputs = [...rec.inputs];
+                                  inputs[idx] = { ...inp, qty: Number(e.target.value) };
+                                  updateRecipe(rec.id, { inputs });
+                                }} />
+                              </div>
+                              <div className="col-span-2 text-right">
+                                <Button className="text-red-400 border-red-700" onClick={() => {
+                                  const inputs = rec.inputs.filter((_, i) => i !== idx);
+                                  updateRecipe(rec.id, { inputs });
+                                }}>Remover</Button>
+                              </div>
+                            </div>
+                          ))}
+                          <Button onClick={() => updateRecipe(rec.id, { inputs: [...(rec.inputs || []), { name: "Novo Insumo", qty: 1 }] })}>+ Insumo</Button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex justify-between">
+                      <Button className="text-red-400 border-red-700" onClick={() => removeRecipe(rec.id)}>Excluir receita</Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </Card>
+            <Card>
+              <h3 className="text-lg font-semibold mb-2 text-orange-300">Importar receita por URL</h3>
+              <p className="text-sm text-orange-500/80 mb-2">Esperado: endpoint JSON público no formato {"{ name, outputQty, inputs: [{name, qty}] }"}. Atenção a CORS (GitHub Pages não tem backend). Se necessário, use seu próprio proxy.</p>
+              <Input placeholder="https://exemplo.com/receita.json" value={fetchUrl} onChange={(e) => setFetchUrl(e.target.value)} />
+              <div className="mt-2">
+                <Button onClick={fetchRecipeFromUrl}>Buscar</Button>
+              </div>
+              <hr className="my-4 border-orange-900" />
+              <h3 className="text-lg font-semibold mb-2 text-orange-300">Dica</h3>
+              <p className="text-sm text-orange-500/80">Você também pode criar receitas manualmente acima, ou colar JSON exportado de outra fonte.</p>
+            </Card>
+          </div>
+        )}
+
+        {/* Planejamento */}
+        {tab === "planejamento" && (
+          <div className="grid md:grid-cols-3 gap-4">
+            <Card className="md:col-span-2">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xl font-semibold text-orange-300">Planejamento de Craft</h2>
+              </div>
+              <div className="grid md:grid-cols-3 gap-3">
+                <div className="md:col-span-2">
+                  <label className="text-xs text-orange-500/80">Receita</label>
+                  <select
+                    className="w-full px-3 py-2 rounded-xl border border-orange-700 bg-black text-orange-200"
+                    value={plan.recipeId}
+                    onChange={(e) => setPlan({ ...plan, recipeId: e.target.value })}
+                  >
+                    {recipes.map((r) => (
+                      <option key={r.id} value={r.id}>{r.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-orange-500/80">Quantidade desejada</label>
+                  <Input type="number" value={plan.target} onChange={(e) => setPlan({ ...plan, target: Number(e.target.value) || 1 })} />
+                </div>
+              </div>
+
+              {currentRecipe && (
+                <div className="mt-4">
+                  <h3 className="font-semibold text-orange-300">Insumos necessários</h3>
+                  <div className="overflow-x-auto mt-2">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-orange-500/80">
+                          <th className="py-2">Recurso</th>
+                          <th className="py-2 w-24">Necessário</th>
+                          <th className="py-2 w-24">Tenho</th>
+                          <th className="py-2 w-24">Déficit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {needs.map((n) => (
+                          <tr key={n.name} className="border-t border-orange-900">
+                            <td className="py-2">{n.name}</td>
+                            <td className="py-2">{n.need}</td>
+                            <td className="py-2">{n.have}</td>
+                            <td className={clsx(
+                              "py-2 font-semibold",
+                              n.deficit > 0 ? "text-red-400" : "text-emerald-400"
+                            )}>{n.deficit}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-3 text-sm text-orange-500/80">Déficit total (soma das unidades): <span className="font-semibold text-orange-300">{totalDeficit}</span></div>
+                </div>
+              )}
+            </Card>
+            <Card>
+              <h3 className="text-lg font-semibold mb-2 text-orange-300">Ações rápidas</h3>
+              <div className="space-y-2">
+                <Button onClick={() => {
+                  if (!currentRecipe) return;
+                  const batches = Math.max(1, Number(plan.target) || 1);
+                  const needed = currentRecipe.inputs.map((i) => ({ name: i.name.toLowerCase(), qty: (Number(i.qty)||0) * batches }));
+                  const next = resources.map((r) => ({ ...r }));
+                  for (const need of needed) {
+                    const idx = next.findIndex((r) => r.name.toLowerCase() === need.name);
+                    if (idx >= 0) next[idx].qty = Math.max(0, Number(next[idx].qty) - need.qty);
+                  }
+                  setResources(next);
+                  alert("Inventário atualizado (consumo simulado)");
+                }}>Consumir do inventário</Button>
+                <Button onClick={() => setPlan({ ...plan, target: 10 })}>Meta rápida: 10 un</Button>
+                <Button onClick={() => setPlan({ ...plan, target: 25 })}>Meta rápida: 25 un</Button>
+              </div>
+              <hr className="my-4 border-orange-900" />
+              <h3 className="text-lg font-semibold mb-2 text-orange-300">Observações</h3>
+              <ul className="list-disc list-inside text-sm text-orange-500/80 space-y-1">
+                <li>Roda 100% no cliente (GitHub Pages).</li>
+                <li>Dados salvos em <b>localStorage</b>; exporte/import para backup.</li>
+                <li>Para scraping/receitas externas, prefira endpoints JSON públicos ou use um <i>proxy</i> (Cloudflare Worker) por causa de CORS.</li>
+              </ul>
+            </Card>
+          </div>
+        )}
+
+        {/* Config */}
+        {tab === "config" && (
+          <div className="grid md:grid-cols-2 gap-4">
+            <Card>
+              <h3 className="text-lg font-semibold mb-2 text-orange-300">Importar inventário em massa (texto)</h3>
+              <p className="text-sm text-orange-500/80 mb-2">Formato por linha: <code>quantidade nome do recurso</code> (ex.: <code>9927 Orichalcum Ore</code>)</p>
+              <Textarea rows={8} placeholder={"Exemplo:\n9927 Orichalcum Ore\n167 Cinnabar\n255 Obsidian Flux"} value={bulkText} onChange={(e) => setBulkText(e.target.value)} />
+              <div className="mt-2 flex gap-2">
+                <Button onClick={applyBulk}>Aplicar</Button>
+                <Button className="text-red-400 border-red-700" onClick={() => setBulkText("")}>Limpar</Button>
+              </div>
+            </Card>
+            <Card>
+              <h3 className="text-lg font-semibold mb-2 text-orange-300">Estado & Reset</h3>
+              <div className="space-y-2">
+                <Button onClick={() => { if (confirm("Zerar recursos?")) setResources([]); }}>Zerar recursos</Button>
+                <Button onClick={() => { if (confirm("Zerar receitas?")) setRecipes([]); }}>Zerar receitas</Button>
+                <Button onClick={() => { if (confirm("Reset total (inclui plano e abas)?")) { localStorage.clear(); location.reload(); } }}>Reset total</Button>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        <footer className="text-center text-xs text-orange-600 pt-4 pb-8">
+          Feito para rodar 100% no cliente. Salvo em localStorage. — Dark Orange Theme 🖤🟧
+        </footer>
+      </div>
+    </div>
+  );
+}
