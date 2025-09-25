@@ -4,14 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>New World – Tracker</title>
-    <!-- React 18 + Babel standalone (para rodar JSX no navegador) -->
+    <!-- React 18 + Babel (JSX no navegador) -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
       :root{
         --bg:#000;
-        --tx:#ffb46a; /* laranja suave */
+        --tx:#ffb46a;
         --tx2:#ffa94d;
         --bd:#ff7a1a;
         --bd2:#ff6a00;
@@ -20,24 +20,13 @@
       }
       *{box-sizing:border-box}
       html,body{height:100%}
-      body{
-        margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 system-ui,Segoe UI,Roboto,Helvetica,Arial;
-      }
+      body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 system-ui,Segoe UI,Roboto,Helvetica,Arial}
       .container{max-width:1100px;margin:0 auto;padding:24px}
       .row{display:flex;gap:8px;flex-wrap:wrap}
-      .btn{
-        padding:8px 12px;border-radius:12px;border:1px solid var(--bd);
-        background:#000;color:var(--tx2);cursor:pointer;transition:.15s;
-      }
+      .btn{padding:8px 12px;border-radius:12px;border:1px solid var(--bd);background:#000;color:var(--tx2);cursor:pointer;transition:.15s}
       .btn:hover{background:#1a0c00;border-color:var(--bd2)}
-      .card{
-        background:rgba(0,0,0,.9);border:1px solid var(--bd);border-radius:16px;
-        padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.3)
-      }
-      .input, select, textarea{
-        width:100%;padding:8px 10px;border-radius:12px;border:1px solid #a94c00;
-        background:#000;color:#ffd9b2;outline:none
-      }
+      .card{background:rgba(0,0,0,.9);border:1px solid var(--bd);border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+      .input, select, textarea{width:100%;padding:8px 10px;border-radius:12px;border:1px solid #a94c00;background:#000;color:#ffd9b2;outline:none}
       .input:focus, select:focus, textarea:focus{box-shadow:0 0 0 3px #331a00}
       table{width:100%;border-collapse:collapse}
       th{color:#ffa95f;font-weight:600;text-align:left}
@@ -50,6 +39,7 @@
       .surplus{color:var(--ok);font-weight:600}
       code{background:#1a1a1a;border:1px solid #333;padding:2px 6px;border-radius:6px}
       footer{color:#ff9640;text-align:center;padding:24px 0}
+      .w32{width:8rem}.w28{width:7rem}
     </style>
   </head>
   <body>
@@ -58,7 +48,7 @@
     <script type="text/babel">
       const { useMemo, useEffect, useState } = React;
 
-      // util
+      // utils
       const clsx = (...xs) => xs.filter(Boolean).join(" ");
       const download = (filename, data) => {
         const blob = new Blob([data], { type: "application/json" });
@@ -75,7 +65,7 @@
         return [value, setValue];
       }
 
-      // dados exemplo
+      // sample
       const SAMPLE_RESOURCES = [
         { id: "orichalcum_ore", name: "Orichalcum Ore", qty: 9927, unit: "un" },
         { id: "cinnabar", name: "Cinnabar", qty: 167, unit: "un" },
@@ -176,7 +166,7 @@
           setBulkText("");
         };
 
-        // fetch recipe (precisa CORS OK)
+        // fetch recipe (CORS)
         const fetchRecipeFromUrl = async () => {
           if (!fetchUrl) return;
           try{
@@ -192,11 +182,11 @@
         return (
           <div className="container">
             <header className="row" style={{justifyContent:"space-between", alignItems:"center"}}>
-              <h1 style="font-weight:800;color:#ffa44d;margin:0">New World – Tracker de Recursos & Crafts</h1>
+              <h1 style={{fontWeight:800,color:"#ffa44d",margin:0}}>New World – Tracker de Recursos & Crafts</h1>
               <div className="row">
                 <Button onClick={exportAll}>Exportar backup</Button>
                 <label className="btn" style={{display:"inline-block"}}>
-                  <input type="file" accept="application/json" style="display:none" onChange={importAll} />
+                  <input type="file" accept="application/json" style={{display:"none"}} onChange={importAll} />
                   Importar backup
                 </label>
               </div>
@@ -219,17 +209,17 @@
             {tab==="recursos" && (
               <Card>
                 <div className="row" style={{justifyContent:"space-between", alignItems:"center", marginBottom:12}}>
-                  <h2 style="margin:0;color:#ffb870">Inventário de Recursos</h2>
+                  <h2 style={{margin:0,color:"#ffb870"}}>Inventário de Recursos</h2>
                   <div className="row">
                     <Input placeholder="Filtrar por nome…" value={filter} onChange={e=>setFilter(e.target.value)} />
                     <Button onClick={addResource}>Adicionar recurso</Button>
                   </div>
                 </div>
-                <div style="overflow:auto">
+                <div style={{overflow:"auto"}}>
                   <table>
                     <thead>
                       <tr>
-                        <th>Nome</th><th class="w-32">Qtd</th><th class="w-28">Unidade</th><th></th>
+                        <th>Nome</th><th className="w32">Qtd</th><th className="w28">Unidade</th><th></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -241,7 +231,7 @@
                           <td><Input value={r.name} onChange={e=>updateResource(r.id,{name:e.target.value})} /></td>
                           <td><Input type="number" value={r.qty} onChange={e=>updateResource(r.id,{qty:Number(e.target.value)})} /></td>
                           <td><Input value={r.unit||"un"} onChange={e=>updateResource(r.id,{unit:e.target.value})} /></td>
-                          <td><Button className="warn" onClick={()=>removeResource(r.id)} style={{borderColor:"#7a1a1a", color:"#ff6666"}}>Remover</Button></td>
+                          <td><Button onClick={()=>removeResource(r.id)} style={{borderColor:"#7a1a1a", color:"#ff6666"}}>Remover</Button></td>
                         </tr>
                       ))}
                     </tbody>
@@ -252,42 +242,42 @@
 
             {tab==="receitas" && (
               <div className="row" style={{gap:16}}>
-                <div style="flex:1 1 620px">
+                <div style={{flex:"1 1 620px"}}>
                   <Card>
                     <div className="row" style={{justifyContent:"space-between", alignItems:"center", marginBottom:12}}>
-                      <h2 style="margin:0;color:#ffb870">Receitas</h2>
+                      <h2 style={{margin:0,color:"#ffb870"}}>Receitas</h2>
                       <Button onClick={addRecipe}>Adicionar receita</Button>
                     </div>
-                    <div className="column" style={{display:"grid", gap:12}}>
+                    <div style={{display:"grid", gap:12}}>
                       {recipes.map(rec=>(
                         <Card key={rec.id}>
                           <div className="row" style={{gap:12, flexWrap:"wrap"}}>
-                            <div style="flex:1 1 260px">
-                              <small class="muted">Nome</small>
+                            <div style={{flex:"1 1 260px"}}>
+                              <small className="muted">Nome</small>
                               <Input value={rec.name} onChange={e=>updateRecipe(rec.id,{name:e.target.value})} />
                             </div>
-                            <div style="flex:1 1 160px;max-width:220px">
-                              <small class="muted">Saída (por craft)</small>
+                            <div style={{flex:"1 1 160px",maxWidth:220}}>
+                              <small className="muted">Saída (por craft)</small>
                               <Input type="number" value={rec.outputQty||1} onChange={e=>updateRecipe(rec.id,{outputQty:Number(e.target.value)||1})}/>
                             </div>
-                            <div style="flex-basis:100%"></div>
-                            <div style="flex:1 1 100%">
-                              <small class="muted">Observações</small>
+                            <div style={{flexBasis:"100%"}} />
+                            <div style={{flex:"1 1 100%"}}>
+                              <small className="muted">Observações</small>
                               <Input value={rec.notes||""} onChange={e=>updateRecipe(rec.id,{notes:e.target.value})}/>
                             </div>
-                            <div style="flex-basis:100%"></div>
-                            <div style="flex:1 1 100%">
-                              <small class="muted">Insumos</small>
-                              <div style="display:grid;gap:8px">
+                            <div style={{flexBasis:"100%"}} />
+                            <div style={{flex:"1 1 100%"}}>
+                              <small className="muted">Insumos</small>
+                              <div style={{display:"grid",gap:8}}>
                                 {(rec.inputs||[]).map((inp,idx)=>(
                                   <div key={idx} className="row" style={{gap:8}}>
-                                    <div style="flex:1 1 auto">
+                                    <div style={{flex:"1 1 auto"}}>
                                       <Input value={inp.name} onChange={e=>{
                                         const inputs=[...rec.inputs]; inputs[idx]={...inp,name:e.target.value};
                                         updateRecipe(rec.id,{inputs});
                                       }}/>
                                     </div>
-                                    <div style="width:120px">
+                                    <div style={{width:120}}>
                                       <Input type="number" value={inp.qty} onChange={e=>{
                                         const inputs=[...rec.inputs]; inputs[idx]={...inp,qty:Number(e.target.value)};
                                         updateRecipe(rec.id,{inputs});
@@ -311,15 +301,15 @@
                     </div>
                   </Card>
                 </div>
-                <div style="flex:1 1 320px;min-width:300px">
+                <div style={{flex:"1 1 320px",minWidth:300}}>
                   <Card>
-                    <h3 style="margin:0 0 8px;color:#ffb870">Importar receita por URL</h3>
-                    <p class="muted">Esperado JSON: <code>{`{ name, outputQty, inputs:[{name, qty}] }`}</code>. Atenção a CORS.</p>
+                    <h3 style={{margin:"0 0 8px",color:"#ffb870"}}>Importar receita por URL</h3>
+                    <p className="muted">Esperado JSON: <code>{`{ name, outputQty, inputs:[{name, qty}] }`}</code>. Atenção a CORS.</p>
                     <Input placeholder="https://exemplo.com/receita.json" value={fetchUrl} onChange={e=>setFetchUrl(e.target.value)} />
-                    <div style="margin-top:8px"><Button onClick={fetchRecipeFromUrl}>Buscar</Button></div>
-                    <hr style="border-color:#1f0f00;margin:16px 0" />
-                    <h3 style="margin:0 0 8px;color:#ffb870">Dica</h3>
-                    <p class="muted">Crie receitas manualmente ou hospede seus próprios JSONs no GitHub (CORS ok).</p>
+                    <div style={{marginTop:8}}><Button onClick={fetchRecipeFromUrl}>Buscar</Button></div>
+                    <hr style={{borderColor:"#1f0f00",margin:"16px 0"}} />
+                    <h3 style={{margin:"0 0 8px",color:"#ffb870"}}>Dica</h3>
+                    <p className="muted">Crie receitas manualmente ou hospede seus próprios JSONs no GitHub (CORS ok).</p>
                   </Card>
                 </div>
               </div>
@@ -327,26 +317,26 @@
 
             {tab==="planejamento" && (
               <div className="row" style={{gap:16}}>
-                <div style="flex:1 1 620px">
+                <div style={{flex:"1 1 620px"}}>
                   <Card>
-                    <h2 style="margin:0 0 12px;color:#ffb870">Planejamento de Craft</h2>
+                    <h2 style={{margin:"0 0 12px",color:"#ffb870"}}>Planejamento de Craft</h2>
                     <div className="row" style={{gap:12, flexWrap:"wrap"}}>
-                      <div style="flex:1 1 320px">
-                        <small class="muted">Receita</small>
+                      <div style={{flex:"1 1 320px"}}>
+                        <small className="muted">Receita</small>
                         <select value={plan.recipeId} onChange={e=>setPlan({...plan, recipeId:e.target.value})}>
                           {recipes.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}
                         </select>
                       </div>
-                      <div style="width:180px">
-                        <small class="muted">Quantidade desejada</small>
+                      <div style={{width:180}}>
+                        <small className="muted">Quantidade desejada</small>
                         <Input type="number" value={plan.target} onChange={e=>setPlan({...plan, target:Number(e.target.value)||1})}/>
                       </div>
                     </div>
 
                     {currentRecipe && (
-                      <div style="margin-top:16px">
-                        <h3 style="margin:0 0 6px;color:#ffb870">Insumos necessários</h3>
-                        <div style="overflow:auto">
+                      <div style={{marginTop:16}}>
+                        <h3 style={{margin:"0 0 6px",color:"#ffb870"}}>Insumos necessários</h3>
+                        <div style={{overflow:"auto"}}>
                           <table>
                             <thead><tr><th>Recurso</th><th>Necessário</th><th>Tenho</th><th>Déficit</th></tr></thead>
                             <tbody>
@@ -361,16 +351,16 @@
                             </tbody>
                           </table>
                         </div>
-                        <div class="muted" style="margin-top:8px">
-                          Déficit total: <strong style="color:#ffa44d">{totalDeficit}</strong>
+                        <div className="muted" style={{marginTop:8}}>
+                          Déficit total: <strong style={{color:"#ffa44d"}}>{totalDeficit}</strong>
                         </div>
                       </div>
                     )}
                   </Card>
                 </div>
-                <div style="flex:1 1 320px;min-width:300px">
+                <div style={{flex:"1 1 320px",minWidth:300}}>
                   <Card>
-                    <h3 style="margin:0 0 8px;color:#ffb870">Ações rápidas</h3>
+                    <h3 style={{margin:"0 0 8px",color:"#ffb870"}}>Ações rápidas</h3>
                     <div className="row" style={{flexDirection:"column", gap:8}}>
                       <Button onClick={()=>{
                         if (!currentRecipe) return;
@@ -387,12 +377,12 @@
                       <Button onClick={()=>setPlan({...plan, target:10})}>Meta rápida: 10 un</Button>
                       <Button onClick={()=>setPlan({...plan, target:25})}>Meta rápida: 25 un</Button>
                     </div>
-                    <hr style="border-color:#1f0f00;margin:16px 0" />
-                    <h3 style="margin:0 0 8px;color:#ffb870">Observações</h3>
-                    <ul style="margin:0;padding-left:18px">
-                      <li class="muted">Roda 100% no cliente (GitHub Pages).</li>
-                      <li class="muted">Dados salvos no <b>localStorage</b> (exporte/import para backup).</li>
-                      <li class="muted">Para buscar receitas externas, prefira JSON público (ou use proxy por causa de CORS).</li>
+                    <hr style={{borderColor:"#1f0f00",margin:"16px 0"}} />
+                    <h3 style={{margin:"0 0 8px",color:"#ffb870"}}>Observações</h3>
+                    <ul style={{margin:0,paddingLeft:18}}>
+                      <li className="muted">Roda 100% no cliente (GitHub Pages).</li>
+                      <li className="muted">Dados salvos no <b>localStorage</b> (exporte/import para backup).</li>
+                      <li className="muted">Para buscar receitas externas, prefira JSON público (ou use proxy por causa de CORS).</li>
                     </ul>
                   </Card>
                 </div>
@@ -401,10 +391,10 @@
 
             {tab==="config" && (
               <div className="row" style={{gap:16}}>
-                <div style="flex:1 1 520px">
+                <div style={{flex:"1 1 520px"}}>
                   <Card>
-                    <h3 style="margin:0 0 8px;color:#ffb870">Importar inventário em massa (texto)</h3>
-                    <p class="muted">Formato por linha: <code>quantidade nome do recurso</code> (ex.: <code>9927 Orichalcum Ore</code>)</p>
+                    <h3 style={{margin:"0 0 8px",color:"#ffb870"}}>Importar inventário em massa (texto)</h3>
+                    <p className="muted">Formato por linha: <code>quantidade nome do recurso</code> (ex.: <code>9927 Orichalcum Ore</code>)</p>
                     <Textarea rows="8" placeholder={"Exemplo:\n9927 Orichalcum Ore\n167 Cinnabar\n255 Obsidian Flux"} value={bulkText} onChange={e=>setBulkText(e.target.value)} />
                     <div className="row" style={{gap:8, marginTop:8}}>
                       <Button onClick={applyBulk}>Aplicar</Button>
@@ -412,9 +402,9 @@
                     </div>
                   </Card>
                 </div>
-                <div style="flex:1 1 320px;min-width:300px">
+                <div style={{flex:"1 1 320px",minWidth:300}}>
                   <Card>
-                    <h3 style="margin:0 0 8px;color:#ffb870">Estado & Reset</h3>
+                    <h3 style={{margin:"0 0 8px",color:"#ffb870"}}>Estado & Reset</h3>
                     <div className="row" style={{flexDirection:"column", gap:8}}>
                       <Button onClick={()=>{ if(confirm("Zerar recursos?")) setResources([]) }}>Zerar recursos</Button>
                       <Button onClick={()=>{ if(confirm("Zerar receitas?")) setRecipes([]) }}>Zerar receitas</Button>
